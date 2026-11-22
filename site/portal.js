@@ -18,7 +18,15 @@
     try{
       const r=await fetch('/api/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       const data=await r.json();if(!r.ok)throw Error(data.error||'Envoi impossible.');
-      result.textContent='Merci ! Votre demande a été transmise. Référence : '+data.reference+'. GeoVision vous répondra aux coordonnées indiquées.';form.reset();
+      form.reset();
+      form.after(result);form.hidden=true;form.style.display='none';
+      result.style.cssText='padding:28px;border-radius:12px;background:#e7f4dc;color:#14313c';
+      result.replaceChildren();
+      const title=document.createElement('h3');title.textContent='Votre demande a bien été reçue !';
+      const details=document.createElement('p');details.textContent='Référence : '+data.reference+'. '+(data.acknowledgement_sent?'Un accusé de réception vous a été envoyé par e-mail.':'L’accusé de réception par e-mail n’a pas pu être envoyé. Conservez votre référence.')+' GeoVision vous répondra dans les meilleurs délais.';
+      const again=document.createElement('button');again.type='button';again.className='btn dark';again.textContent='Nouvelle demande';
+      again.onclick=()=>{result.classList.add('hide');result.removeAttribute('style');result.replaceChildren();form.append(result);form.hidden=false;form.style.removeProperty('display');form.querySelector('input').focus()};
+      result.append(title,details,again);result.tabIndex=-1;result.focus();
     }catch(e){result.textContent='Votre demande n’a pas été confirmée. '+e.message+' Merci de réessayer.'}
     finally{busy=false;fields.forEach(x=>x.disabled=false);submit.textContent='Envoyer ma demande'}
   };
