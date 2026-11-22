@@ -18,10 +18,12 @@ jobs:
           node-version: '22'
       - run: python -m unittest -v test_server.py
       - run: for file in site/*.js; do node --check "$file"; done
+      - name: Reproduire un checkout privé (umask 077)
+        run: chmod -R go-rwx server.py site
       - run: docker build -t geovision-ci .
       - name: Smoke test
         run: |
-          docker run -d --name geovision-ci -p 127.0.0.1:8400:8080 geovision-ci
+          docker run -d --name geovision-ci --read-only --cap-drop ALL --security-opt no-new-privileges -p 127.0.0.1:8400:8080 geovision-ci
           trap 'docker logs geovision-ci || true; docker rm -f geovision-ci >/dev/null || true' EXIT
           ready=0
           for attempt in $(seq 1 30); do
