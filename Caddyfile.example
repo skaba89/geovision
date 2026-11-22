@@ -1,0 +1,8 @@
+# Exemple à intégrer au proxy existant ; ne pas remplacer sa configuration.
+rec-geovision.dsig-consulting.com {
+    encode zstd gzip
+    request_body {
+        max_size 16KB
+    }
+    reverse_proxy 127.0.0.1:8400
+}

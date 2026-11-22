@@ -1,0 +1,27 @@
+name: GeoVision CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m unittest -v test_server.py
+      - run: for file in site/*.js; do node --check "$file"; done
+      - run: docker build -t geovision-ci .
+      - name: Smoke test
+        run: |
+          docker run --rm -d --name geovision-ci -p 127.0.0.1:8400:8080 geovision-ci
+          trap 'docker stop geovision-ci' EXIT
+          curl --retry 10 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:8400/healthz
+          curl -fsS http://127.0.0.1:8400/ >/dev/null
