@@ -27,3 +27,32 @@ section[id]{scroll-margin-top:90px}
 @media(max-width:1150px){.nav .wrap{position:relative}.nav .menu{display:block;min-width:44px}.nav .links{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;align-items:stretch;padding:18px 5%;background:#fff;border-bottom:1px solid #d6e1dc;box-shadow:0 12px 22px #102d3915;gap:2px;white-space:normal}.nav .links.open{display:flex}.nav .links a{padding:12px 14px}.nav .links .btn{margin-top:5px}}
 @media(max-width:480px){h1{font-size:clamp(2.35rem,9vw,3.2rem)}.actions .btn{width:100%}header{gap:10px}header a:first-child{min-width:125px}.bar input,.bar select{width:100%}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+/* Shared fluid layout: homepage, contact form and all detail pages. */
+img,svg,video{max-width:100%}
+.wrap{width:100%;max-width:1440px;padding-inline:clamp(16px,4vw,64px)}
+.hero .wrap,.split,.services,.sectors,.cases,.fields,.extra-fields{min-width:0}
+.hero .wrap>*,.split>*,.services>*,.sectors>*,.cases>*,.fields>*,.extra-fields>*{min-width:0}
+.hero .wrap,.split{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,5vw,76px)}
+.contact .split{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);align-items:start}
+.contact form{width:100%;padding:clamp(18px,3vw,36px)}
+.contact form input,.contact form select,.contact form textarea{min-width:0;font-size:16px;min-height:46px}
+.contact form label{overflow-wrap:anywhere}
+.contact form .fields,.contact form .extra-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.contact form .btn{width:100%;white-space:normal}
+.contact #result{max-width:100%;overflow-wrap:anywhere}
+.contact #result .btn{margin-top:12px;max-width:100%;white-space:normal}
+.nav .brand{min-width:0;flex-shrink:1}
+.nav .brand img{max-width:100%;height:auto!important;max-height:64px}
+.nav .menu{flex-shrink:0;cursor:pointer}
+.hero .visual{height:clamp(260px,34vw,520px);min-height:0}
+.hero .visual .foot,.hero .visual .tag{max-width:calc(100% - 30px);overflow-wrap:anywhere}
+body>header:not(.nav){flex-wrap:wrap;padding-inline:clamp(16px,6vw,80px)}
+body>header:not(.nav)>a:first-child{flex-shrink:1;max-width:100%}
+body>main:not(#accueil){width:100%;max-width:1120px;padding:clamp(32px,6vw,80px) clamp(16px,5vw,64px)}
+main .panel{overflow-wrap:anywhere;padding:clamp(16px,3vw,28px)}
+main a.btn{max-width:100%;white-space:normal;text-align:center}
+footer{overflow-wrap:anywhere}
+@media(min-width:1600px){.wrap{max-width:1520px}.nav .wrap{max-width:1520px}.contact .split{gap:88px}}
+@media(max-width:1024px){.hero .wrap,.split,.contact .split{grid-template-columns:minmax(0,1fr)}.services,.cases{grid-template-columns:repeat(2,minmax(0,1fr))!important}.sectors{grid-template-columns:repeat(2,minmax(0,1fr))}.contact form{max-width:760px;margin-inline:auto}.hero .visual{height:clamp(260px,48vw,440px)}}
+@media(max-width:600px){.services,.sectors,.cases,.contact form .fields,.contact form .extra-fields{grid-template-columns:minmax(0,1fr)!important}.nav .wrap{height:72px;padding-inline:16px;gap:12px}.nav .brand img{width:clamp(130px,53vw,210px)!important}.nav .links{max-height:calc(100dvh - 72px);overflow-y:auto}h1{font-size:clamp(2rem,8vw,3rem)}h2{font-size:clamp(1.65rem,6vw,2.4rem)}.hero,section{padding-block:clamp(36px,8vw,55px)}.actions{gap:10px}.actions .btn{width:100%}.hero .visual{height:clamp(220px,64vw,340px)}.steps .step{grid-template-columns:minmax(0,80px) minmax(0,1fr)}.contact form{padding:18px}.contact #result{padding:18px!important}.strip .wrap{gap:10px}.strip .wrap>*{flex-basis:100%}footer .wrap{flex-direction:column;gap:12px}body>header:not(.nav)>a:first-child{width:clamp(130px,45vw,190px);height:48px}body>header:not(.nav)>a:last-child{font-size:.875rem}}
