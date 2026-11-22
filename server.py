@@ -10,13 +10,15 @@ import threading
 import mimetypes
 from collections import deque
 from email.message import EmailMessage
+from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit, unquote
 
 ROOT = Path(__file__).parent / 'site'
 FIELDS = ('nom','entreprise','email','telephone','service','type','lieu','delai','projet')
-EMAIL = re.compile(r'^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$')
+EMAIL = re.compile(r'^[A-Za-z0-9.!#$%&\x27*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$')
+SERVICES = {'Détection & géoradar': 'Notre équipe étudiera votre besoin de détection de réseaux.', 'Géoréférencement & topographie': 'Notre équipe étudiera vos besoins de relevés et de géoréférencement.', 'SIG & cartographie': 'Notre équipe étudiera vos besoins cartographiques et SIG.', 'Autre besoin': 'Notre équipe étudiera votre demande pour vous orienter vers le service adapté.'}
 MIMES = {'.woff':'font/woff','.woff2':'font/woff2','.webp':'image/webp','.svg':'image/svg+xml','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.html':'text/html; charset=utf-8'}
 LOCK = threading.Lock()
 ATTEMPTS = deque()
@@ -62,6 +64,19 @@ def admit():
         ATTEMPTS.append(now)
         return True
 
+def acknowledgement(data, cfg, reference):
+    service = data['service'] if data['service'] in SERVICES else 'Autre besoin'
+    detail = SERVICES[service]
+    msg = EmailMessage()
+    msg['From'] = cfg['MAIL_FROM']
+    msg['To'] = data['email']
+    msg['Reply-To'] = cfg['MAIL_TO']
+    msg['Subject'] = 'GeoVision – Accusé de réception '+reference
+    msg['Auto-Submitted'] = 'auto-replied'
+    msg.set_content(f'Bonjour,\n\nNous avons bien reçu votre demande concernant : {service}.\nRéférence : {reference}\n\n{detail}\nNous reviendrons vers vous dans les meilleurs délais.\nCe message confirme la réception de votre demande, pas un engagement de réalisation.\n\nCordialement,\nL’équipe GeoVision\n{cfg["SITE_ORIGIN"]}\n{cfg["MAIL_TO"]}')
+    msg.add_alternative(f'''<html lang="fr"><body style="font-family:Arial,sans-serif;color:#14313c;background:#f4f7f3;padding:24px"><div style="max-width:600px;margin:auto;background:white;padding:28px;border-radius:12px"><div style="background:#071d2a;color:white;padding:20px;font-size:24px;font-weight:bold">GeoVision</div><h1 style="font-size:24px;color:#146b65">Votre demande a bien été reçue</h1><p>Bonjour,</p><p>Merci pour votre confiance.</p><div style="background:#e7f4dc;padding:18px;border-radius:8px"><strong>Référence :</strong> {escape(reference)}<br><strong>Expertise :</strong> {escape(service)}</div><p>{escape(detail)}</p><p>Nous reviendrons vers vous dans les meilleurs délais. Ce message confirme la réception de votre demande, pas un engagement de réalisation.</p><p>Cordialement,<br><strong>L’équipe GeoVision</strong></p><p><a href="{escape(cfg['SITE_ORIGIN'], quote=True)}">{escape(cfg['SITE_ORIGIN'])}</a><br>{escape(cfg['MAIL_TO'])}</p></div></body></html>''', subtype='html')
+    return msg
+
 def deliver(data, cfg, reference):
     msg=EmailMessage()
     msg['From']=cfg['MAIL_FROM']
@@ -79,9 +94,15 @@ def deliver(data, cfg, reference):
         if port==587:
             smtp.ehlo();smtp.starttls(context=ctx);smtp.ehlo()
         smtp.login(cfg['SMTP_USER'],cfg['SMTP_PASSWORD'])
-        refused=smtp.send_message(msg)
+        refused=smtp.send_message(msg, to_addrs=[cfg['MAIL_TO']])
         if refused:
             raise RuntimeError('Destinataire refusé')
+        try:
+            return not smtp.send_message(acknowledgement(data,cfg,reference), to_addrs=[data['email']])
+        except (OSError,smtplib.SMTPException,ValueError):
+            # The business request has already been accepted; do not invite a duplicate.
+            print('Contact acknowledgement not accepted',flush=True)
+            return False
 
 class Handler(BaseHTTPRequestHandler):
     server_version='GeoVision'
@@ -145,10 +166,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(429,{'error':'Trop de demandes. Réessayez dans quelques minutes.'})
         reference='GV-'+uuid.uuid4().hex[:12].upper()
         try:
-            deliver(data,cfg,reference)
+            confirmed=deliver(data,cfg,reference)
         except (OSError,smtplib.SMTPException,RuntimeError):
             return self.reply(502,{'error':'Le service de messagerie est momentanément indisponible.'})
-        return self.reply(200,{'reference':reference})
+        return self.reply(200,{'reference':reference,'acknowledgement_sent':confirmed is True})
 
 if __name__=='__main__':
     ThreadingHTTPServer(('0.0.0.0',8080),Handler).serve_forever()

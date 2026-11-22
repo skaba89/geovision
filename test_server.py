@@ -28,9 +28,14 @@ class SiteTest(unittest.TestCase):
         for p in ('/espace.html','/api/requests','/.env','/fonts/../server.py'):
             self.assertEqual(self.call('GET',p)[0],404,p)
     def test_message(self):
-        with patch.object(server,'deliver') as send:
+        with patch.object(server,'deliver',return_value=True) as send:
             status,body=self.call('POST','/api/contact',self.valid())
-            self.assertEqual(status,200);self.assertTrue(json.loads(body)['reference'].startswith('GV-'));send.assert_called_once()
+            self.assertEqual(status,200);self.assertTrue(json.loads(body)['reference'].startswith('GV-'));self.assertTrue(json.loads(body)['acknowledgement_sent']);send.assert_called_once()
+    def test_ack_failure_does_not_retry_request(self):
+        with patch.object(server,'deliver',return_value=False):
+            status,body=self.call('POST','/api/contact',self.valid())
+            self.assertEqual(status,200)
+            self.assertFalse(json.loads(body)['acknowledgement_sent'])
     def test_validation(self):
         for data in ({**self.valid(),'email':'x'}, {**self.valid(),'website':'bot'}, {**self.valid(),'entreprise':'a\nb'}, {**self.valid(),'projet':'x'*4001}):
             self.assertEqual(self.call('POST','/api/contact',data)[0],400)
@@ -47,9 +52,21 @@ class SiteTest(unittest.TestCase):
             c.send_message.return_value={}
             server.deliver(self.valid(),server.configuration(),'GV-TEST')
             c.starttls.assert_called_once();c.login.assert_called_once()
-            msg=c.send_message.call_args.args[0]
+            self.assertEqual(c.send_message.call_count,2)
+            msg=c.send_message.call_args_list[0].args[0]
             self.assertEqual(msg['To'],'contact@example.test')
             self.assertEqual(msg['Reply-To'],'client@example.test')
+            ack=c.send_message.call_args_list[1].args[0]
+            self.assertEqual(ack['To'],'client@example.test')
+            self.assertEqual(ack['Reply-To'],'contact@example.test')
+            self.assertIn('SIG & cartographie',ack.get_body(preferencelist=('plain',)).get_content())
+            self.assertIn('GV-TEST',ack.get_body(preferencelist=('html',)).get_content())
+            self.assertEqual(c.send_message.call_args_list[1].kwargs['to_addrs'],['client@example.test'])
+    def test_ack_smtp_failure(self):
+        with patch.object(server.smtplib,'SMTP') as smtp:
+            c=smtp.return_value.__enter__.return_value
+            c.send_message.side_effect=[{},OSError('test')]
+            self.assertFalse(server.deliver(self.valid(),server.configuration(),'GV-TEST'))
     def test_rate_limit(self):
         with patch.object(server,'admit',return_value=False):
             self.assertEqual(self.call('POST','/api/contact',self.valid())[0],429)
