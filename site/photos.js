@@ -1,0 +1,7 @@
+(()=>{
+ const photos=[['detection.webp','Technicien utilisant un géoradar sur une chaussée'],['gnss.webp','Géomètre utilisant un récepteur GNSS RTK sur le terrain'],['sig.webp','Poste de travail avec cartographie numérique des réseaux']];
+ const img=(file,alt,eager=false)=>{const el=document.createElement('img');el.src='/images/'+file;el.alt=alt;el.loading=eager?'eager':'lazy';el.decoding='async';return el};
+ const css=document.createElement('style');css.textContent=`.visual{height:440px;min-height:0}.visual>img{width:100%;height:100%;object-fit:cover;display:block}.visual:after{content:'';position:absolute;inset:55% 0 0;background:linear-gradient(transparent,#071d2acd);pointer-events:none}.visual .tag,.visual .foot{z-index:1}.service .art{height:225px;position:relative}.art img{height:100%;width:100%;object-fit:cover;display:block}.art:after{content:'Visuel illustratif';position:absolute;bottom:8px;right:8px;color:white;background:#071d2ac9;padding:3px 8px;border-radius:3px;font-size:12px}@media(max-width:850px){.visual{height:340px}.service .art{height:250px}}`;document.head.append(css);
+ const hero=document.querySelector('.visual');hero.querySelector('svg').replaceWith(img('hero.webp','Techniciens en intervention de détection de réseaux enterrés avec un géoradar',true));hero.querySelector('.tag').textContent='INVESTIGATION TERRAIN';hero.querySelector('.foot').textContent='Visuel illustratif généré par IA · Détection de réseaux';
+ document.querySelectorAll('.service .art').forEach((card,i)=>{card.replaceChildren(img(...photos[i]))});
+})();
