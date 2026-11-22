@@ -27,6 +27,30 @@ class SiteTest(unittest.TestCase):
         self.assertNotIn(b'Espace client',self.call('GET','/portal.js')[1])
         for p in ('/espace.html','/api/requests','/.env','/fonts/../server.py'):
             self.assertEqual(self.call('GET',p)[0],404,p)
+    def test_seo(self):
+        with patch.dict(os.environ, {'SEO_INDEXING':'1','SITE_ORIGIN':'https://rec.example.test'}):
+            self.assertIn(b'Disallow: /', self.call('GET','/robots.txt')[1])
+            self.assertEqual(self.call('GET','/sitemap.xml')[0],404)
+        with patch.dict(os.environ, {'SEO_INDEXING':'0','SITE_ORIGIN':server.PUBLIC_ORIGIN}):
+            self.assertIn(b'Disallow: /', self.call('GET','/robots.txt')[1])
+        with patch.dict(os.environ, {'SEO_INDEXING':'1','SITE_ORIGIN':server.PUBLIC_ORIGIN}):
+            self.assertIn(b'Sitemap: https://geovision-infra.fr/sitemap.xml', self.call('GET','/robots.txt')[1])
+            status, body = self.call('GET','/sitemap.xml')
+            self.assertEqual(status,200)
+            import xml.etree.ElementTree as ET
+            root = ET.fromstring(body)
+            urls = [e.text for e in root.findall('{*}url/{*}loc')]
+            self.assertEqual(urls,[server.PUBLIC_ORIGIN+p for p in server.INDEXABLE])
+            for path in ('/','/index.html','/informations.html'):
+                c=http.client.HTTPConnection('127.0.0.1',self.http.server_port,timeout=5)
+                c.request('GET',path)
+                r=c.getresponse()
+                if path == '/informations.html':
+                    self.assertEqual(r.getheader('X-Robots-Tag'),'noindex')
+                else:
+                    self.assertEqual(r.getheader('Link'),'<https://geovision-infra.fr/>; rel="canonical"')
+                r.read();c.close()
+
     def test_message(self):
         with patch.object(server,'deliver',return_value=True) as send:
             status,body=self.call('POST','/api/contact',self.valid())
