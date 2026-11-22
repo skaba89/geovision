@@ -20,6 +20,12 @@ FIELDS = ('nom','entreprise','email','telephone','service','type','lieu','delai'
 EMAIL = re.compile(r'^[A-Za-z0-9.!#$%&\x27*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$')
 SERVICES = {'Détection & géoradar': 'Notre équipe étudiera votre besoin de détection de réseaux.', 'Géoréférencement & topographie': 'Notre équipe étudiera vos besoins de relevés et de géoréférencement.', 'SIG & cartographie': 'Notre équipe étudiera vos besoins cartographiques et SIG.', 'Autre besoin': 'Notre équipe étudiera votre demande pour vous orienter vers le service adapté.'}
 MIMES = {'.woff':'font/woff','.woff2':'font/woff2','.webp':'image/webp','.svg':'image/svg+xml','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.html':'text/html; charset=utf-8'}
+PUBLIC_ORIGIN = 'https://geovision-infra.fr'
+INDEXABLE = ('/', '/detection.html', '/georeferencement.html', '/cartographie.html')
+
+def indexing_enabled():
+    return os.getenv('SEO_INDEXING') == '1' and os.getenv('SITE_ORIGIN') == PUBLIC_ORIGIN
+
 LOCK = threading.Lock()
 ATTEMPTS = deque()
 LIMIT = 30
@@ -122,6 +128,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('X-Frame-Options','DENY')
         self.send_header('Referrer-Policy','strict-origin-when-cross-origin')
         self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'")
+        path = urlsplit(self.path).path
+        canonical = '/' if path == '/index.html' else path
+        if content_type.startswith('text/html'):
+            if not indexing_enabled() or canonical not in INDEXABLE:
+                self.send_header('X-Robots-Tag', 'noindex')
+            else:
+                self.send_header('Link', f'<{PUBLIC_ORIGIN}{canonical}>; rel="canonical"')
         self.end_headers()
         if not head:
             self.wfile.write(body)
@@ -133,6 +146,14 @@ class Handler(BaseHTTPRequestHandler):
         self.serve(head=True)
     def serve(self,head=False):
         path=unquote(urlsplit(self.path).path)
+        if path == '/robots.txt':
+            robots = ('User-agent: *\nAllow: /\nSitemap: ' + PUBLIC_ORIGIN + '/sitemap.xml\n'
+                      if indexing_enabled() else 'User-agent: *\nDisallow: /\n')
+            return self.respond(200, robots.encode(), 'text/plain; charset=utf-8', head=head)
+        if path == '/sitemap.xml' and indexing_enabled():
+            urls = ''.join(f'<url><loc>{PUBLIC_ORIGIN}{p}</loc></url>' for p in INDEXABLE)
+            xml = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + urls + '</urlset>'
+            return self.respond(200, xml.encode(), 'application/xml; charset=utf-8', head=head)
         if path=='/healthz':
             return self.respond(200,b'{"status":"ok"}',head=head)
         if path=='/':
